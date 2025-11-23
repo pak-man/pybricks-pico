@@ -4,6 +4,8 @@
 #ifndef _PBDRVCONFIG_H_
 #define _PBDRVCONFIG_H_
 
+#include "pbdrvconfig_pid_dma.h"
+
 // Platform
 #define PBDRV_CONFIG_PICOW                             (1)
 #define PBDRV_CONFIG_RP2040B                            (1)

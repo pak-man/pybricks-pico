@@ -21,6 +21,7 @@ include_directories(
     ${CMAKE_CURRENT_BINARY_DIR}
     ${PBIO_TOP}/include
     ${PBIO_TOP}/platform/pico2w
+    ${PBIO_TOP}/drv/pid_dma
     ${PBTOP}/lib
 )
 
@@ -31,6 +32,7 @@ add_compile_definitions(
     PICO_RP2350B=1
     CYW43_ENABLE_BLUETOOTH=1
     PYBRICKS_MOTOR_COUNT=12
+    PID_DMA_MAX_MOTORS=12
 )
 
 # Source files
@@ -43,14 +45,21 @@ add_executable(pybricks_pico2w
     ${PBIO_TOP}/drv/gpio/gpio_rp2350.c
     ${PBIO_TOP}/drv/counter/counter_rp2350_pio.c
     ${PBIO_TOP}/drv/pwm/pwm_rp2350_pio.c
+    # DMA PID motor control
+    ${PBIO_TOP}/drv/pid_dma/pid_dma_rp2040.c
 )
 
-# Generate PIO header
+# Generate PIO headers
 pico_generate_pio_header(pybricks_pico2w 
     ${CMAKE_CURRENT_LIST_DIR}/pio/quadrature_encoder.pio
 )
 
-# Link libraries (RP2350 has same library names)
+# Generate PIO header for DMA PID encoder
+pico_generate_pio_header(pybricks_pico2w 
+    ${PBIO_TOP}/drv/pid_dma/pid_dma.pio
+)
+
+# Link libraries
 target_link_libraries(pybricks_pico2w
     pico_stdlib
     pico_cyw43_arch_none
@@ -62,7 +71,8 @@ target_link_libraries(pybricks_pico2w
     hardware_timer
     hardware_dma
     hardware_watchdog
-    pico_multicore  # For dual-core profile execution
+    hardware_clocks
+    pico_multicore
 )
 
 pico_enable_stdio_usb(pybricks_pico2w 1)
@@ -72,8 +82,8 @@ pico_add_extra_outputs(pybricks_pico2w)
 
 # Print build info
 message(STATUS "Building for Pico 2 W (RP2350B)")
-message(STATUS "  Motors: 12")
+message(STATUS "  Motors: 12 with DMA PID")
 message(STATUS "  Encoders: 12 (PIO-based)")
-message(STATUS "  PWM Slices: 12")
-message(STATUS "  PIO State Machines: 12")
+message(STATUS "  PWM: Hardware PWM")
+message(STATUS "  PIO Blocks: 3")
 message(STATUS "  GPIO Pins: 48")

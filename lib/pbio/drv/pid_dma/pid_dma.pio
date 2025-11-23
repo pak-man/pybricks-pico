@@ -1,0 +1,132 @@
+; SPDX-License-Identifier: MIT
+; Simplified PIO programs for motor control
+; Uses proven designs that fit in 32 instructions
+
+; ============================================================================
+; QUADRATURE ENCODER
+; From pico-examples - proven to work, 15 instructions
+; ============================================================================
+.program quadrature_encoder
+.origin 0
+
+; 16-state jump table for quadrature decoding
+    jmp update      ; 00 -> 00 no movement
+    jmp decr        ; 00 -> 01 
+    jmp incr        ; 00 -> 10
+    jmp update      ; 00 -> 11 error
+    jmp incr        ; 01 -> 00
+    jmp update      ; 01 -> 01 no movement
+    jmp update      ; 01 -> 10 error
+    jmp decr        ; 01 -> 11
+    jmp decr        ; 10 -> 00
+    jmp update      ; 10 -> 01 error
+    jmp update      ; 10 -> 10 no movement
+    jmp incr        ; 10 -> 11
+    jmp update      ; 11 -> 00 error
+    jmp incr        ; 11 -> 01
+    jmp decr        ; 11 -> 10
+    jmp update      ; 11 -> 11 no movement
+
+; State machine code starts here (at offset 16)
+incr:
+    mov x, ~x
+    jmp x--, incr_cont
+incr_cont:
+    mov x, ~x
+    jmp update
+
+decr:
+    jmp x--, update
+
+PUBLIC update:
+    mov isr, x      ; Save count to ISR for reading
+    in pins, 2      ; Shift in 2 bits (new state)
+    mov y, isr      ; y = (count << 2) | new_state
+    push noblock    ; Push count (optional, for DMA)
+    out y, 2        ; Shift out new state to y
+    in y, 2         ; Shift old state | new state into ISR
+    mov pc, isr     ; Jump to table entry
+
+% c-sdk {
+#include "hardware/clocks.h"
+#include "hardware/gpio.h"
+
+static inline void quadrature_encoder_program_init(PIO pio, uint sm, uint offset, uint pin_a) {
+    pio_sm_config c = quadrature_encoder_program_get_default_config(offset);
+
+    sm_config_set_in_pins(&c, pin_a);
+    sm_config_set_in_shift(&c, false, false, 32);
+    sm_config_set_out_shift(&c, true, false, 32);
+    sm_config_set_clkdiv(&c, 1.0f);
+
+    // Pin setup
+    pio_gpio_init(pio, pin_a);
+    pio_gpio_init(pio, pin_a + 1);
+    gpio_pull_up(pin_a);
+    gpio_pull_up(pin_a + 1);
+    pio_sm_set_consecutive_pindirs(pio, sm, pin_a, 2, false);
+
+    // Initialize x to 0, and shift the initial pin state into ISR
+    pio_sm_exec(pio, sm, pio_encode_set(pio_x, 0));
+    pio_sm_exec(pio, sm, pio_encode_in(pio_pins, 2));
+
+    pio_sm_init(pio, sm, offset + quadrature_encoder_offset_update, &c);
+    pio_sm_set_enabled(pio, sm, true);
+}
+
+static inline int32_t quadrature_encoder_get_count(PIO pio, uint sm) {
+    uint32_t val;
+    // Read count without disturbing state machine
+    // Force an 'in' of X to ISR, then read ISR
+    pio_sm_exec_wait_blocking(pio, sm, pio_encode_in(pio_x, 32));
+    val = pio_sm_get_blocking(pio, sm);
+    return (int32_t)val;
+}
+
+static inline void quadrature_encoder_set_count(PIO pio, uint sm, int32_t count) {
+    pio_sm_exec_wait_blocking(pio, sm, pio_encode_set(pio_x, (uint32_t)count & 0x1f));
+    // For counts > 31, we need multiple operations, but this is rarely needed
+}
+%}
+
+; ============================================================================
+; PWM OUTPUT - Very simple, 8 instructions
+; Just outputs a value to pins, CPU handles direction logic
+; ============================================================================
+.program pwm_simple
+
+    pull block          ; Wait for duty cycle value
+    mov x, osr          ; x = duty (0-255)
+    mov y, osr          ; y = period counter copy
+    
+.wrap_target
+    pull noblock        ; Get new duty (or keep old)
+    mov x, osr
+    set pins, 1         ; Output high
+high_loop:
+    jmp x-- high_loop   ; Count down x
+    set pins, 0         ; Output low
+    set y, 31           ; Low time counter
+low_loop:
+    jmp y-- low_loop [7]; Pad low time
+.wrap
+
+% c-sdk {
+static inline void pwm_simple_program_init(PIO pio, uint sm, uint offset, uint pin) {
+    pio_sm_config c = pwm_simple_program_get_default_config(offset);
+    
+    sm_config_set_set_pins(&c, pin, 1);
+    sm_config_set_clkdiv(&c, 125.0f);  // 1MHz clock -> ~3.9kHz PWM
+    
+    pio_gpio_init(pio, pin);
+    pio_sm_set_consecutive_pindirs(pio, sm, pin, 1, true);
+    
+    pio_sm_init(pio, sm, offset, &c);
+    pio_sm_put(pio, sm, 0);  // Initial duty = 0
+    pio_sm_set_enabled(pio, sm, true);
+}
+
+static inline void pwm_simple_set_duty(PIO pio, uint sm, uint8_t duty) {
+    pio_sm_put(pio, sm, duty);
+}
+%}

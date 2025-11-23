@@ -5,6 +5,8 @@
 #include <stdint.h>
 #include <string.h>
 #include <math.h>
+#include <string.h>
+#include <stdlib.h>
 #include "pico/stdlib.h"
 
 // External motor functions

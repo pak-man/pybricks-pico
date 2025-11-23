@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <math.h>
 #include "pico/stdlib.h"
+#include <string.h>
 
 // External motor control API
 extern void motor_stop(uint8_t motor_id);
