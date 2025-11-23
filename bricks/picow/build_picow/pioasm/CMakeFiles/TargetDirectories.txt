@@ -1,0 +1,7 @@
+/home/tdt/pybricks-micropython/bricks/picow/build_picow/pioasm/CMakeFiles/pioasm.dir
+/home/tdt/pybricks-micropython/bricks/picow/build_picow/pioasm/CMakeFiles/edit_cache.dir
+/home/tdt/pybricks-micropython/bricks/picow/build_picow/pioasm/CMakeFiles/rebuild_cache.dir
+/home/tdt/pybricks-micropython/bricks/picow/build_picow/pioasm/CMakeFiles/list_install_components.dir
+/home/tdt/pybricks-micropython/bricks/picow/build_picow/pioasm/CMakeFiles/install.dir
+/home/tdt/pybricks-micropython/bricks/picow/build_picow/pioasm/CMakeFiles/install/local.dir
+/home/tdt/pybricks-micropython/bricks/picow/build_picow/pioasm/CMakeFiles/install/strip.dir

@@ -1,0 +1,5 @@
+/home/tdt/pybricks-micropython/bricks/picow/build_picow/pioasm-install/pioasm/pioasm
+/home/tdt/pybricks-micropython/bricks/picow/build_picow/pioasm-install/pioasm/pioasmTargets.cmake
+/home/tdt/pybricks-micropython/bricks/picow/build_picow/pioasm-install/pioasm/pioasmTargets-release.cmake
+/home/tdt/pybricks-micropython/bricks/picow/build_picow/pioasm-install/pioasm/pioasmConfig.cmake
+/home/tdt/pybricks-micropython/bricks/picow/build_picow/pioasm-install/pioasm/pioasmConfigVersion.cmake
