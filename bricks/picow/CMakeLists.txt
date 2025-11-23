@@ -1,4 +1,3 @@
-cmake_minimum_required(VERSION 3.13)
 
 # ============================================================================
 # Pybricks Motor Control - Unified Build for Pico W and Pico 2 W
@@ -59,6 +58,7 @@ include_directories(
     ${CMAKE_CURRENT_LIST_DIR}
     ${CMAKE_CURRENT_BINARY_DIR}
     ${PBIO_TOP}/drv/pid_dma
+    ${PBIO_TOP}/platform/pico_common
 )
 
 # Common definitions

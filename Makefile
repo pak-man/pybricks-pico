@@ -74,6 +74,12 @@ essentialhub: mpy-cross
 clean-essentialhub: clean-mpy-cross
 	@$(MAKE) -C bricks/essentialhub clean
 
+picow: mpy-cross
+	@$(MAKE) -C bricks/picow
+
+clean-picow: clean-mpy-cross
+	@$(MAKE) -C bricks/picow clean
+
 virtualhub: mpy-cross
 	@$(MAKE) -C bricks/virtualhub CROSS_COMPILE=
 

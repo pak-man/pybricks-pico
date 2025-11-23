@@ -1,4 +1,5 @@
-#include <pbdrv/config.h>
+// SPDX-License-Identifier: MIT
+// Platform initialization for Pico W / Pico 2 W
 
 #include "pico/stdlib.h"
 #include "pico/bootrom.h"
