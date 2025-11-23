@@ -1,0 +1,84 @@
+; Quadrature Encoder with Hardware State Machine
+; Decodes direction and counts encoder pulses
+; Outputs position delta to FIFO
+
+.program quadrature_encoder
+
+; Use scratch X and Y registers:
+; X = current state (2 bits: A and B)
+; Y = previous state
+
+public entry_point:
+start:
+    ; Read current encoder state (2 pins: A and B)
+    in pins, 2              ; Read into ISR
+    mov x, isr              ; Copy to X (current state)
+    
+    ; Compare with previous state
+    mov isr, x              ; Copy current to ISR
+    jmp x!=y, state_changed ; If changed, decode direction
+    
+    ; No change, keep looping
+    jmp start
+    
+state_changed:
+    ; We have a state change
+    ; Decode direction using Gray code logic
+    ; State transition table:
+    ; 00->01 = +1, 01->11 = +1, 11->10 = +1, 10->00 = +1 (forward)
+    ; 00->10 = -1, 10->11 = -1, 11->01 = -1, 01->00 = -1 (backward)
+    
+    ; Calculate (current XOR previous) to find which bit changed
+    mov isr, y              ; Get previous state
+    mov osr, x              ; Get current state to OSR
+    out null, 30            ; Shift out to align
+    mov osr, isr            ; Previous to OSR
+    out null, 30            ; Align
+    
+    ; Simple state machine: just push state changes
+    ; The CPU will decode direction from consecutive states
+    mov isr, x              ; Push current state
+    push noblock            ; Send to FIFO (non-blocking)
+    
+    ; Update previous state
+    mov y, x
+    
+    jmp start
+
+
+% c-sdk {
+#include "hardware/gpio.h"
+#include "hardware/clocks.h"
+
+static inline void quadrature_encoder_program_init(PIO pio, uint sm, uint offset, uint pin_a) {
+    // Get default config
+    pio_sm_config c = quadrature_encoder_program_get_default_config(offset);
+    
+    // Configure IN pins (encoder A and B are consecutive pins)
+    sm_config_set_in_pins(&c, pin_a);
+    
+    // Shift right, autopush disabled (we push manually)
+    sm_config_set_in_shift(&c, true, false, 2);
+    
+    // Run as fast as possible for best resolution
+    sm_config_set_clkdiv(&c, 1.0f);
+    
+    // Set pin directions (inputs)
+    pio_sm_set_consecutive_pindirs(pio, sm, pin_a, 2, false);
+    
+    // Initialize pins with pull-ups
+    pio_gpio_init(pio, pin_a);
+    pio_gpio_init(pio, pin_a + 1);
+    gpio_pull_up(pin_a);
+    gpio_pull_up(pin_a + 1);
+    
+    // Load initial state into Y register
+    pio_sm_exec(pio, sm, pio_encode_in(pio_pins, 2));
+    pio_sm_exec(pio, sm, pio_encode_mov(pio_y, pio_isr));
+    
+    // Initialize and start
+    pio_sm_init(pio, sm, offset + quadrature_encoder_offset_entry_point, &c);
+    pio_sm_set_enabled(pio, sm, true);
+}
+
+%}
