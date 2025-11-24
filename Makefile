@@ -19,6 +19,11 @@ endif
 
 help:
 	@echo "Use 'make <BRICK>' to build a brick."
+	@echo ""
+	@echo "Pico targets:"
+	@echo "  picow    - Build for Pico W (RP2040, 4 motors)"
+	@echo "  pico2w   - Build for Pico 2 W (RP2350B, 12 motors)"
+	@echo "  pico-all - Build both Pico variants"
 
 .PHONY: doc
 
@@ -28,9 +33,9 @@ doc:
 clean-doc:
 	@$(MAKE) -C lib/pbio/doc clean
 
-all: movehub cityhub technichub primehub essentialhub virtualhub nxt ev3 doc
+all: movehub cityhub technichub primehub essentialhub virtualhub nxt ev3 pico-all doc
 
-clean-all: clean-movehub clean-cityhub clean-technichub clean-primehub clean-essentialhub clean-virtualhub clean-nxt clean-ev3 clean-doc
+clean-all: clean-movehub clean-cityhub clean-technichub clean-primehub clean-essentialhub clean-virtualhub clean-nxt clean-ev3 clean-pico-all clean-doc
 
 ev3: mpy-cross
 	@$(MAKE) -C bricks/ev3
@@ -74,11 +79,26 @@ essentialhub: mpy-cross
 clean-essentialhub: clean-mpy-cross
 	@$(MAKE) -C bricks/essentialhub clean
 
-picow: mpy-cross
-	@$(MAKE) -C bricks/picow
+# Pico W (RP2040, 4 motors)
+picow:
+	@mkdir -p bricks/picow/build_picow
+	@cd bricks/picow/build_picow && cmake -DTARGET_BOARD=picow .. && $(MAKE)
 
-clean-picow: clean-mpy-cross
-	@$(MAKE) -C bricks/picow clean
+clean-picow:
+	@rm -rf bricks/picow/build_picow
+
+# Pico 2 W (RP2350B, 12 motors)
+pico2w:
+	@mkdir -p bricks/picow/build_pico2w
+	@cd bricks/picow/build_pico2w && cmake -DTARGET_BOARD=pico2w .. && $(MAKE)
+
+clean-pico2w:
+	@rm -rf bricks/picow/build_pico2w
+
+# Build both Pico variants
+pico-all: picow pico2w
+
+clean-pico-all: clean-picow clean-pico2w
 
 virtualhub: mpy-cross
 	@$(MAKE) -C bricks/virtualhub CROSS_COMPILE=

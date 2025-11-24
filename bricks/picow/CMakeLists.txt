@@ -1,127 +1,158 @@
+cmake_minimum_required(VERSION 3.13)
 
 # ============================================================================
-# Pybricks Motor Control - Unified Build for Pico W and Pico 2 W
-# ============================================================================
-#
-# Usage:
-#   mkdir build && cd build
-#
-#   # Build for Pico W (RP2040):
-#   cmake -DTARGET_BOARD=picow ..
-#   make
-#
-#   # Build for Pico 2 W (RP2350B):
-#   cmake -DTARGET_BOARD=pico2w ..
-#   make
-#
-#   # Build both (requires separate build dirs):
-#   mkdir build_picow build_pico2w
-#   cd build_picow && cmake -DTARGET_BOARD=picow .. && make
-#   cd ../build_pico2w && cmake -DTARGET_BOARD=pico2w .. && make
-#
+# Board configuration based on TARGET_BOARD variable
 # ============================================================================
 
-# Default to Pico W if not specified
 if(NOT DEFINED TARGET_BOARD)
     set(TARGET_BOARD "picow")
-    message(STATUS "TARGET_BOARD not specified, defaulting to: picow")
+    message(WARNING "TARGET_BOARD not set, defaulting to picow")
 endif()
 
-# Configure based on target
-if(TARGET_BOARD STREQUAL "pico2w")
-    set(PICO_BOARD pico2_w)
-    set(PICO_PLATFORM rp2350)
-    set(PROJECT_NAME pybricks_pico2w)
-    set(NUM_MOTORS 12)
-    set(IS_PICO_2W TRUE)
-else()
+if(TARGET_BOARD STREQUAL "picow")
     set(PICO_BOARD pico_w)
     set(PICO_PLATFORM rp2040)
-    set(PROJECT_NAME pybricks_picow)
     set(NUM_MOTORS 4)
-    set(IS_PICO_2W FALSE)
+    set(IS_PICO_2W 0)
+    set(OUTPUT_NAME pybricks_picow)
+    message(STATUS "Building for Pico W (RP2040, ${NUM_MOTORS} motors)")
+elseif(TARGET_BOARD STREQUAL "pico2w")
+    set(PICO_BOARD pico2_w)
+    set(PICO_PLATFORM rp2350)
+    set(NUM_MOTORS 12)
+    set(IS_PICO_2W 1)
+    set(OUTPUT_NAME pybricks_pico2w)
+    message(STATUS "Building for Pico 2 W (RP2350B, ${NUM_MOTORS} motors)")
+else()
+    message(FATAL_ERROR "Unknown TARGET_BOARD: ${TARGET_BOARD}. Use 'picow' or 'pico2w'")
+endif()
+
+# ============================================================================
+# Import Pico SDK
+# ============================================================================
+
+# PICO_SDK_PATH must be set
+if(NOT DEFINED ENV{PICO_SDK_PATH})
+    message(FATAL_ERROR "PICO_SDK_PATH environment variable not set")
 endif()
 
 include($ENV{PICO_SDK_PATH}/external/pico_sdk_import.cmake)
 
-project(${PROJECT_NAME} C CXX ASM)
+# ============================================================================
+# Project setup
+# ============================================================================
+
+project(${OUTPUT_NAME} C CXX ASM)
 set(CMAKE_C_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 
 pico_sdk_init()
 
+# ============================================================================
 # Paths
+# ============================================================================
+
 set(PBTOP ${CMAKE_CURRENT_LIST_DIR}/../..)
 set(PBIO_TOP ${PBTOP}/lib/pbio)
 
+# ============================================================================
 # Include directories
+# ============================================================================
+
 include_directories(
     ${CMAKE_CURRENT_LIST_DIR}
     ${CMAKE_CURRENT_BINARY_DIR}
-    ${PBIO_TOP}/drv/pid_dma
+    ${PBIO_TOP}/include
     ${PBIO_TOP}/platform/pico_common
+    ${PBTOP}/lib
+    ${PBIO_TOP}/drv/pid_dma
+    ${PBIO_TOP}/drv/watchdog
+    ${PBIO_TOP}/drv/battery
+    ${PBIO_TOP}/drv/ioport
+    ${PBIO_TOP}/drv/storage
 )
 
-# Common definitions
-add_compile_definitions(
-    PICO_ON_DEVICE=1
-    CYW43_ENABLE_BLUETOOTH=1
-    PYBRICKS_MOTOR_COUNT=${NUM_MOTORS}
-    PID_DMA_MAX_MOTORS=${NUM_MOTORS}
-)
+# ============================================================================
+# Compile definitions
+# Note: NUM_MOTORS is defined in pbdrvconfig.h based on PICO_2W
+# ============================================================================
 
-# Platform-specific definitions
+# Only define PICO_2W flag for conditional compilation
+
 if(IS_PICO_2W)
-    add_compile_definitions(
-        PICO_2W=1
-        PICO_RP2350=1
-        PICO_RP2350B=1
-    )
+    add_compile_definitions(PICO_2W=1)
 endif()
 
-# Source files - pid_dma handles everything
-add_executable(${PROJECT_NAME}
+# ============================================================================
+# Source files
+# ============================================================================
+
+add_executable(${OUTPUT_NAME}
+    # Main application
     main.c
+    # motor_test.c  # TODO: Add motor control functions
+    system_test.c
     btstack_port.c
-    motor_test.c
+    
+    # Platform
+    ${PBIO_TOP}/platform/pico_common/platform.c
+    
+    # Drivers
     ${PBIO_TOP}/drv/pid_dma/pid_dma_rp2040.c
+    ${PBIO_TOP}/drv/imu/imu_bno085.c
+    ${PBIO_TOP}/drv/watchdog/watchdog_rp2040.c
+    ${PBIO_TOP}/drv/battery/battery_rp2040_adc.c
+    ${PBIO_TOP}/drv/ioport/ioport_rp2040.c
+    ${PBIO_TOP}/drv/storage/storage_flash_rp2040.c
+    ${PBIO_TOP}/drv/storage/storage_sd_rp2040.c
+    ${PBIO_TOP}/drv/storage/storage.c
 )
 
-# Generate PIO header for encoder (in pid_dma)
-pico_generate_pio_header(${PROJECT_NAME} 
+# ============================================================================
+# Generate PIO headers
+# ============================================================================
+
+pico_generate_pio_header(${OUTPUT_NAME} 
     ${PBIO_TOP}/drv/pid_dma/pid_dma.pio
 )
 
-# Link libraries (same for both platforms)
-target_link_libraries(${PROJECT_NAME}
+# ============================================================================
+# Link libraries
+# ============================================================================
+
+target_link_libraries(${OUTPUT_NAME}
     pico_stdlib
     pico_cyw43_arch_none
     pico_btstack_ble
     pico_btstack_cyw43
     pico_multicore
-    hardware_gpio
-    hardware_pio
+    hardware_adc
+    hardware_i2c
+    hardware_uart
+    hardware_spi
+    hardware_flash
+    hardware_sync
     hardware_pwm
-    hardware_timer
-    hardware_dma
-    hardware_watchdog
-    hardware_clocks
+    hardware_pio
 )
 
-pico_enable_stdio_usb(${PROJECT_NAME} 1)
-pico_enable_stdio_uart(${PROJECT_NAME} 0)
+# ============================================================================
+# Output generation
+# ============================================================================
 
-pico_add_extra_outputs(${PROJECT_NAME})
+pico_add_extra_outputs(${OUTPUT_NAME})
 
-# Build summary
-message(STATUS "============================================")
-message(STATUS "Building: ${PROJECT_NAME}")
+# Enable USB output for debugging (optional)
+# pico_enable_stdio_usb(${OUTPUT_NAME} 1)
+# pico_enable_stdio_uart(${OUTPUT_NAME} 0)
+
+# ============================================================================
+# Post-build info
+# ============================================================================
+
+message(STATUS "Build succeeded, configuration:")
+message(STATUS "  Target: ${TARGET_BOARD}")
 message(STATUS "  Board: ${PICO_BOARD}")
 message(STATUS "  Platform: ${PICO_PLATFORM}")
 message(STATUS "  Motors: ${NUM_MOTORS}")
-message(STATUS "  Control: Dual-core @ 1 kHz")
-if(IS_PICO_2W)
-    message(STATUS "  GPIO: 48 pins")
-else()
-    message(STATUS "  GPIO: 30 pins")
-endif()
-message(STATUS "============================================")
+message(STATUS "  Output: ${OUTPUT_NAME}.uf2")

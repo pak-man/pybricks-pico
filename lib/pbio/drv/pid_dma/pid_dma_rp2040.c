@@ -265,3 +265,33 @@ void pid_dma_deinit(void) {
     pio_remove_program(pio0, &quadrature_encoder_program, encoder_prog_offset);
     subsystem_initialized = false;
 }
+
+// ============================================================================
+// Compatibility wrappers for main.c and system_test.c
+// ============================================================================
+
+void pbdrv_counter_init(void) {
+    // Already done in pid_dma_init
+}
+
+void pbdrv_counter_update(void) {
+    // No-op - updates happen in pid_dma_force_update per motor
+}
+
+void pbdrv_pwm_init(void) {
+    // Already done in pid_dma_motor_setup
+}
+
+void pbdrv_counter_reset(uint8_t id) {
+    pid_dma_reset_position(id);
+}
+
+int32_t pbdrv_counter_get_count_simple(uint8_t id) {
+    int32_t pos;
+    pid_dma_get_state(id, &pos, NULL, NULL);
+    return pos / 1000;  // Convert millidegrees to degrees
+}
+
+void pbdrv_pwm_set_duty_simple(uint8_t id, int16_t duty) {
+    pid_dma_set_pwm(id, duty);
+}
