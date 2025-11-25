@@ -39,24 +39,38 @@ endif()
 
 include($ENV{PICO_SDK_PATH}/external/pico_sdk_import.cmake)
 
-project(${OUTPUT_NAME} C CXX ASM)
+# Set encryption key for OTA (CHANGE THIS!)
+if(NOT DEFINED PFB_AES_KEY)
+    set(PFB_AES_KEY "0123456789ABCDEF0123456789ABCDEF")
+    message(WARNING "Using default AES key - change this for production!")
+endif()
+
+project(pybricks C CXX ASM)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 
 pico_sdk_init()
 
-set(PBTOP ${CMAKE_CURRENT_LIST_DIR}/../..)
-set(PBIO_TOP ${PBTOP}/lib/pbio)
+# Add pico_fota_bootloader only for picow (not pico2w)
+if(TARGET_BOARD STREQUAL "picow")
+    add_subdirectory(pico_fota_bootloader)
+    set(ENABLE_OTA TRUE)
+else()
+    set(ENABLE_OTA FALSE)
+endif()
 
+# Common paths
+set(PBIO_TOP ${CMAKE_SOURCE_DIR}/../../lib/pbio)
+
+# Include directories
 include_directories(
-    ${CMAKE_CURRENT_LIST_DIR}
-    ${CMAKE_CURRENT_BINARY_DIR}
+    ${CMAKE_SOURCE_DIR}
     ${PBIO_TOP}/platform/pico_common
     ${PBIO_TOP}/include
-    ${PBTOP}/lib
-    ${PBIO_TOP}/drv/pid_dma
-    ${PBIO_TOP}/drv/watchdog
+    ${PBIO_TOP}/drv/imu
     ${PBIO_TOP}/drv/battery
+    ${PBIO_TOP}/drv/watchdog
+    ${PBIO_TOP}/drv/pid_dma
     ${PBIO_TOP}/drv/ioport
     ${PBIO_TOP}/drv/storage
 )
@@ -66,11 +80,18 @@ if(IS_PICO_2W)
 endif()
 add_compile_definitions(CYW43_ENABLE_BLUETOOTH=1)
 
+if(ENABLE_OTA)
+    set(OTA_SOURCES ota_handler.c)
+else()
+    set(OTA_SOURCES)
+endif()
+
 add_executable(${OUTPUT_NAME}
     main.c
     system_test.c
     btstack_port.c
     httpd_content.c
+    ${OTA_SOURCES}
     ${PBIO_TOP}/platform/pico_common/platform.c
     ${PBIO_TOP}/drv/pid_dma/pid_dma_rp2040.c
     ${PBIO_TOP}/drv/imu/imu_bno085.c
@@ -88,12 +109,27 @@ target_include_directories(${OUTPUT_NAME} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
 target_link_libraries(${OUTPUT_NAME}
     pico_stdlib ${CYW43_ARCH_LIB}
-    pico_btstack_ble pico_btstack_cyw43
-    pico_lwip_http pico_lwip_sntp pico_multicore
-    hardware_adc hardware_i2c hardware_uart hardware_spi
-    hardware_flash hardware_sync hardware_pwm hardware_pio hardware_dma
+    pico_btstack_ble
+    pico_btstack_cyw43
+    pico_lwip_http
+    pico_lwip_sntp
+    hardware_pio
+    hardware_dma
+    hardware_pwm
+    hardware_adc
+    hardware_i2c
+    hardware_spi
+    hardware_flash
+    pico_multicore
 )
+
+# Link OTA bootloader library only for picow
+if(ENABLE_OTA)
+    target_link_libraries(${OUTPUT_NAME} pico_fota_bootloader_lib)
+    pfb_compile_with_bootloader(${OUTPUT_NAME})
+endif()
 
 pico_add_extra_outputs(${OUTPUT_NAME})
 
-message(STATUS "Target: ${TARGET_BOARD}, WiFi: ${WIFI_MODE}, Motors: ${NUM_MOTORS}")
+pico_enable_stdio_usb(${OUTPUT_NAME} 1)
+pico_enable_stdio_uart(${OUTPUT_NAME} 0)

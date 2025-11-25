@@ -14,3 +14,6 @@
 	path = lib/umm_malloc
 	url = https://github.com/rhempel/umm_malloc.git
 	update = none
+[submodule "bricks/picow/pico_fota_bootloader"]
+	path = bricks/picow/pico_fota_bootloader
+	url = https://github.com/JZimnol/pico_fota_bootloader.git

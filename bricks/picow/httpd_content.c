@@ -1,15 +1,16 @@
-// Embedded web content for HTTP server
+// Embedded web content for HTTP server with OTA support
 
 #include <string.h>
 #include "lwip/apps/httpd.h"
 #include "lwip/apps/fs.h"
 #include "lwip/def.h"
+#include "ota_handler.h"
 
-// HTML content (minified)
+// HTML content with OTA upload
 static const char index_html[] = 
 "<!DOCTYPE html>"
 "<html><head><title>Pybricks Hub</title>"
-"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
+"<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
 "<style>"
 "body{font-family:Arial;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;padding:20px;margin:0}"
 ".container{max-width:900px;margin:0 auto}"
@@ -26,6 +27,10 @@ static const char index_html[] =
 "button:hover{background:#5568d3}"
 ".stop{background:#dc3545}.stop:hover{background:#c82333}"
 ".test{background:#28a745}.test:hover{background:#218838}"
+".upload-btn{background:#ff9800}.upload-btn:hover{background:#e68900}"
+"input[type=file]{padding:10px;background:#f8f9fa;border-radius:8px;width:100%;margin-bottom:10px}"
+"#progress{display:none;height:30px;background:#eee;border-radius:8px;overflow:hidden;margin-top:10px}"
+"#progress-bar{height:100%;background:#28a745;transition:width 0.3s;display:flex;align-items:center;justify-content:center;color:white;font-weight:bold}"
 "</style></head><body>"
 "<div class=\"container\"><h1>🤖 Pybricks Hub</h1>"
 "<div class=\"card\"><h2>📊 Status</h2><div class=\"status\"><!--#status--></div></div>"
@@ -46,18 +51,48 @@ static const char index_html[] =
 "<div class=\"buttons\">"
 "<button class=\"stop\" onclick=\"stopAll()\">🛑 STOP</button>"
 "<button class=\"test\" onclick=\"testAll()\">▶️ Test</button>"
-"</div></div></div>"
+"</div></div>"
+"<div class=\"card\"><h2>📦 OTA Firmware Update</h2>"
+"<p style=\"color:#666;margin-bottom:15px\">Version: <!--#version--></p>"
+"<input type=\"file\" id=\"fwFile\" accept=\".bin\">"
+"<button class=\"upload-btn\" onclick=\"uploadFW()\">🚀 Upload & Install</button>"
+"<div id=\"progress\"><div id=\"progress-bar\">0%</div></div>"
+"<p id=\"status-msg\" style=\"margin-top:10px;color:#666\"></p>"
+"</div></div>"
 "<script>"
-"function setMotor(m,d){document.getElementById('m'+m+'v').textContent=d;fetch('/motor?motor='+m+'&duty='+d)}"
-"function stopAll(){for(let i=0;i<4;i++){document.getElementById('m'+i).value=0;setMotor(i,0)}}"
-"function testAll(){for(let i=0;i<4;i++){setTimeout(()=>{"
-"document.getElementById('m'+i).value=5000;setMotor(i,5000);"
-"setTimeout(()=>{document.getElementById('m'+i).value=0;setMotor(i,0)},1000)"
-"},i*1500)}}"
-"setInterval(()=>location.reload(),3000)"
-"</script></body></html>";
+"function setMotor(m,v){document.getElementById('m'+m+'v').textContent=v;fetch('/motor?motor='+m+'&duty='+v);}"
+"function stopAll(){for(let i=0;i<4;i++){document.getElementById('m'+i).value=0;setMotor(i,0);}}"
+"function testAll(){for(let i=0;i<4;i++){setMotor(i,5000);setTimeout(()=>setMotor(i,0),1000);}}"
+"function uploadFW(){"
+"const f=document.getElementById('fwFile').files[0];"
+"if(!f){alert('Select a .bin file');return;}"
+"const fd=new FormData();fd.append('firmware',f);"
+"const xhr=new XMLHttpRequest();"
+"xhr.upload.onprogress=(e)=>{"
+"if(e.lengthComputable){"
+"const p=Math.round((e.loaded/e.total)*100);"
+"document.getElementById('progress').style.display='block';"
+"document.getElementById('progress-bar').style.width=p+'%';"
+"document.getElementById('progress-bar').textContent=p+'%';"
+"}"
+"};"
+"xhr.onload=()=>{"
+"if(xhr.status==200){"
+"document.getElementById('status-msg').textContent='✅ Upload complete! Rebooting in 3s...';"
+"setTimeout(()=>location.reload(),5000);"
+"}else{"
+"document.getElementById('status-msg').textContent='❌ Upload failed: '+xhr.responseText;"
+"}"
+"};"
+"xhr.onerror=()=>document.getElementById('status-msg').textContent='❌ Network error';"
+"xhr.open('POST','/upload');"
+"xhr.send(fd);"
+"}"
+"setInterval(()=>location.reload(),30000);"
+"</script>"
+"</body></html>";
 
-// For lwIP 2.x, we need to define custom filesystem
+// For lwIP 2.x filesystem
 #if LWIP_HTTPD_CUSTOM_FILES
 
 int fs_open_custom(struct fs_file *file, const char *name) {
@@ -72,7 +107,6 @@ int fs_open_custom(struct fs_file *file, const char *name) {
 }
 
 void fs_close_custom(struct fs_file *file) {
-    // Nothing to free for static content
     (void)file;
 }
 
