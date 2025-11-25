@@ -28,10 +28,6 @@
 #define SDCARD_SPI_INIT_FREQ    PBDRV_CONFIG_STORAGE_SD_SPI_INIT_FREQ
 #define SDCARD_SPI_FREQ         PBDRV_CONFIG_STORAGE_SD_SPI_FREQ
 
-#define STORAGE_SETTINGS_SECTOR       PBDRV_CONFIG_STORAGE_SETTINGS_SECTOR
-#define STORAGE_PROGRAM_START_SECTOR  PBDRV_CONFIG_STORAGE_PROGRAM_START_SECTOR
-#define STORAGE_PROGRAM_MAX_SIZE      PBDRV_CONFIG_STORAGE_PROGRAM_MAX_SIZE
-
 // SD card commands
 #define CMD0    (0x40 + 0)      // GO_IDLE_STATE
 #define CMD1    (0x40 + 1)      // SEND_OP_COND
@@ -61,8 +57,6 @@
 // Types
 // ============================================================================
 
-// sdcard_type_t defined in storage_sd_rp2040.h
-
 typedef struct {
     bool initialized;
     bool mounted;
@@ -73,6 +67,9 @@ typedef struct {
 } sdcard_state_t;
 
 static sdcard_state_t sd_state = {0};
+
+// Forward declaration for internal function (called by storage.c)
+uint64_t pbdrv_storage_sd_get_capacity_internal(void);
 
 // ============================================================================
 // Low-level SPI functions
@@ -305,7 +302,7 @@ int pbdrv_storage_sd_init(void) {
     printf("SD: Initialized (type=%d)\n", sd_state.type);
     
     // Read capacity from CSD
-    pbdrv_storage_sd_get_capacity_impl();
+    pbdrv_storage_sd_get_capacity_internal();
     
     return 0;
 }
@@ -516,7 +513,12 @@ int pbdrv_storage_sd_write_blocks(uint32_t block, const uint8_t *buffer, uint32_
 // Card Information
 // ============================================================================
 
-uint64_t pbdrv_storage_sd_get_capacity_impl(void) {
+sdcard_type_t pbdrv_storage_sd_get_type(void) {
+    return sd_state.type;
+}
+
+// Internal implementation - called by public API in storage.c
+uint64_t pbdrv_storage_sd_get_capacity_internal(void) {
     if (!sd_state.initialized) return 0;
     if (sd_state.capacity_bytes > 0) return sd_state.capacity_bytes;
     
@@ -581,6 +583,13 @@ uint64_t pbdrv_storage_sd_get_capacity_impl(void) {
            capacity / (1024 * 1024), sd_state.sector_count);
     
     return capacity;
+}
+
+uint32_t pbdrv_storage_sd_get_sector_count(void) {
+    if (sd_state.sector_count == 0) {
+        pbdrv_storage_sd_get_capacity_internal();
+    }
+    return sd_state.sector_count;
 }
 
 // ============================================================================

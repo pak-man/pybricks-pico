@@ -75,6 +75,71 @@ void process_ble_command(const uint8_t *data, uint16_t len) {
     }
 }
 
+// Setup motors based on platform
+static void setup_motors(void) {
+    printf("Initializing motor control...\n");
+    pid_dma_init();
+    
+#ifdef PICO_2W
+    // Pico 2 W: 12 motors on GPIO 0-47 (skip 14-15 for IMU I2C)
+    const struct { uint8_t enc_a, enc_b, pwm_a, pwm_b; } motor_pins[12] = {
+        {0, 1, 2, 3},       // Motor 0
+        {4, 5, 6, 7},       // Motor 1
+        {8, 9, 10, 11},     // Motor 2
+        {12, 13, 16, 17},   // Motor 3 (skip 14,15 for IMU I2C)
+        {18, 19, 20, 21},   // Motor 4
+        {22, 23, 24, 25},   // Motor 5
+        {26, 27, 28, 29},   // Motor 6
+        {30, 31, 32, 33},   // Motor 7
+        {34, 35, 36, 37},   // Motor 8
+        {38, 39, 40, 41},   // Motor 9
+        {42, 43, 44, 45},   // Motor 10
+        {46, 47, 0, 1},     // Motor 11 (wrap to GPIO 0,1 for PWM)
+    };
+    
+    for (int i = 0; i < 12; i++) {
+        pid_dma_hw_config_t config = {
+            .encoder_pio = NULL,
+            .encoder_pin_a = motor_pins[i].enc_a,
+            .encoder_pin_b = motor_pins[i].enc_b,
+            .pwm_pio = NULL,
+            .pwm_pin_a = motor_pins[i].pwm_a,
+            .pwm_pin_b = motor_pins[i].pwm_b,
+            .counts_per_rev = 360,
+        };
+        if (pid_dma_motor_setup(i, &config) == 0) {
+            printf("Motor %d: OK\n", i);
+        }
+    }
+#else
+    // Pico W: 4 motors (skip GPIO 4,5 for IMU I2C)
+    const struct { uint8_t enc_a, enc_b, pwm_a, pwm_b; } motor_pins[4] = {
+        {2, 3, 6, 7},       // Motor 0 (Port A)
+        {8, 9, 10, 11},     // Motor 1 (Port B)
+        {12, 13, 14, 15},   // Motor 2 (Port C)
+        {16, 17, 18, 19},   // Motor 3 (Port D)
+    };
+    
+    for (int i = 0; i < 4; i++) {
+        pid_dma_hw_config_t config = {
+            .encoder_pio = NULL,
+            .encoder_pin_a = motor_pins[i].enc_a,
+            .encoder_pin_b = motor_pins[i].enc_b,
+            .pwm_pio = NULL,
+            .pwm_pin_a = motor_pins[i].pwm_a,
+            .pwm_pin_b = motor_pins[i].pwm_b,
+            .counts_per_rev = 360,
+        };
+        if (pid_dma_motor_setup(i, &config) == 0) {
+            printf("Motor %d (Port %c): OK\n", i, 'A' + i);
+        }
+    }
+#endif
+    
+    pbdrv_pwm_init();
+    pbdrv_counter_init();
+}
+
 int main() {
     stdio_init_all();
     
@@ -99,77 +164,7 @@ int main() {
     pbdrv_storage_init();
     
     // Initialize motor drivers
-    printf("Initializing motor control...\n");
-    pid_dma_init();
-    
-    // Setup motors based on platform
-#ifdef PICO_2W
-    // Pico 2 W: 12 motors on GPIO 0-47
-    const struct { uint8_t enc_a, enc_b, pwm_a, pwm_b; } motor_pins[12] = {
-        {0, 1, 2, 3},       // Motor 0
-        {4, 5, 6, 7},       // Motor 1
-        {8, 9, 10, 11},     // Motor 2
-        {12, 13, 16, 17},   // Motor 3 (skip 14,15 for IMU I2C)
-        {18, 19, 20, 21},   // Motor 4
-        {22, 23, 24, 25},   // Motor 5
-        {26, 27, 28, 29},   // Motor 6
-        {30, 31, 32, 33},   // Motor 7
-        {34, 35, 36, 37},   // Motor 8
-        {38, 39, 40, 41},   // Motor 9
-        {42, 43, 44, 45},   // Motor 10
-        {46, 47, 0, 1},     // Motor 11 (wrap to GPIO 0,1 for PWM)
-    };
-    for (int i = 0; i < 12; i++) {
-        pid_dma_hw_config_t config = {
-            .encoder_pio = NULL,
-            .encoder_pin_a = motor_pins[i].enc_a,
-            .encoder_pin_b = motor_pins[i].enc_b,
-            .pwm_pio = NULL,
-            .pwm_pin_a = motor_pins[i].pwm_a,
-            .pwm_pin_b = motor_pins[i].pwm_b,
-            .counts_per_rev = 360,
-        };
-        if (pid_dma_motor_setup(i, &config) == 0) {
-            printf("Motor %d: OK\n", i);
-        }
-    }
-#else
-    // Pico W: 4 motors (skip GPIO 4,5 for IMU I2C)
-    pid_dma_hw_config_t motor0_config = {
-        .encoder_pio = NULL, .encoder_pin_a = 2, .encoder_pin_b = 3,
-        .pwm_pio = NULL, .pwm_pin_a = 6, .pwm_pin_b = 7,
-        .counts_per_rev = 360,
-    };
-    pid_dma_motor_setup(0, &motor0_config);
-    printf("Motor 0 (Port A): OK\n");
-    
-    pid_dma_hw_config_t motor1_config = {
-        .encoder_pio = NULL, .encoder_pin_a = 8, .encoder_pin_b = 9,
-        .pwm_pio = NULL, .pwm_pin_a = 10, .pwm_pin_b = 11,
-        .counts_per_rev = 360,
-    };
-    pid_dma_motor_setup(1, &motor1_config);
-    printf("Motor 1 (Port B): OK\n");
-    
-    pid_dma_hw_config_t motor2_config = {
-        .encoder_pio = NULL, .encoder_pin_a = 12, .encoder_pin_b = 13,
-        .pwm_pio = NULL, .pwm_pin_a = 14, .pwm_pin_b = 15,
-        .counts_per_rev = 360,
-    };
-    pid_dma_motor_setup(2, &motor2_config);
-    printf("Motor 2 (Port C): OK\n");
-    
-    pid_dma_hw_config_t motor3_config = {
-        .encoder_pio = NULL, .encoder_pin_a = 16, .encoder_pin_b = 17,
-        .pwm_pio = NULL, .pwm_pin_a = 18, .pwm_pin_b = 19,
-        .counts_per_rev = 360,
-    };
-    pid_dma_motor_setup(3, &motor3_config);
-    printf("Motor 3 (Port D): OK\n");
-#endif
-    
-    pbdrv_pwm_init();
-    pbdrv_counter_init();
+    setup_motors();
     
     // Initialize IMU
     printf("\nInitializing IMU (BNO085)...\n");

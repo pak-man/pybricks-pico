@@ -25,14 +25,11 @@ int pbdrv_storage_sd_init(void);
 // Deinitialize SD card
 void pbdrv_storage_sd_deinit(void);
 
-// Check if SD card is present
-bool pbdrv_storage_sd_is_present(void);
-
 // Get SD card type
 sdcard_type_t pbdrv_storage_sd_get_type(void);
 
-// Get capacity in bytes
-uint64_t pbdrv_storage_sd_get_capacity_impl(void);
+// Get capacity in bytes (internal implementation - called by storage.c)
+uint64_t pbdrv_storage_sd_get_capacity_internal(void);
 
 // Get sector count (512-byte sectors)
 uint32_t pbdrv_storage_sd_get_sector_count(void);
@@ -54,13 +51,11 @@ int pbdrv_storage_sd_read_blocks(uint32_t block, uint8_t *buffer, uint32_t count
 int pbdrv_storage_sd_write_blocks(uint32_t block, const uint8_t *buffer, uint32_t count);
 
 // ============================================================================
-// Pybricks storage interface (for user programs)
+// Note: The following functions are defined in storage.c (not here):
+//   - pbdrv_storage_sd_is_present()
+//   - pbdrv_storage_sd_get_capacity()
+//   - pbdrv_storage_read_program()
+//   - pbdrv_storage_write_program()
 // ============================================================================
-
-// Read user program from SD card
-int pbdrv_storage_read_program(uint8_t *buffer, uint32_t offset, uint32_t size);
-
-// Write user program to SD card
-int pbdrv_storage_write_program(const uint8_t *buffer, uint32_t offset, uint32_t size);
 
 #endif // _PBDRV_STORAGE_SD_RP2040_H_

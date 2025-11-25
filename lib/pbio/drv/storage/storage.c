@@ -362,8 +362,8 @@ bool pbdrv_storage_sd_is_present(void) {
 
 uint64_t pbdrv_storage_sd_get_capacity(void) {
 #if PBDRV_CONFIG_STORAGE_SD_RP2040
-    extern uint64_t pbdrv_storage_sd_get_capacity_impl(void);
-    return pbdrv_storage_sd_get_capacity_impl();
+    extern uint64_t pbdrv_storage_sd_get_capacity_internal(void);
+    return pbdrv_storage_sd_get_capacity_internal();
 #else
     return 0;
 #endif

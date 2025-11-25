@@ -267,19 +267,22 @@ void pid_dma_deinit(void) {
 }
 
 // ============================================================================
-// Compatibility wrappers for main.c and system_test.c
+// Compatibility wrappers for legacy Pybricks counter/PWM API
+// These bridge the gap between main.c/system_test.c and the new DMA PID driver
+// TODO: Refactor main.c/system_test.c to use pid_dma_* functions directly,
+//       then remove these wrappers
 // ============================================================================
 
 void pbdrv_counter_init(void) {
-    // Already done in pid_dma_init
+    // No-op: Initialization already done in pid_dma_init()
 }
 
 void pbdrv_counter_update(void) {
-    // No-op - updates happen in pid_dma_force_update per motor
+    // No-op: Updates happen per-motor in pid_dma_force_update()
 }
 
 void pbdrv_pwm_init(void) {
-    // Already done in pid_dma_motor_setup
+    // No-op: PWM setup already done in pid_dma_motor_setup()
 }
 
 void pbdrv_counter_reset(uint8_t id) {
