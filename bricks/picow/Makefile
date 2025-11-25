@@ -1,9 +1,9 @@
-# Makefile for Pybricks Pico W / Pico 2 W
-# Builds both targets from unified source
+# Makefile for Pybricks Pico W / Pico 2 W with WiFi
 
 # Configuration
 PICO_SDK_PATH ?= $(HOME)/pico-sdk
 BUILD_BASE := build
+WIFI_MODE ?= THREADSAFE_BACKGROUND
 
 # Export for CMake
 export PICO_SDK_PATH
@@ -23,9 +23,9 @@ NC := \033[0m
 all: picow pico2w
 
 picow:
-	@echo "$(YELLOW)Building Pico W (RP2040, 4 motors)...$(NC)"
+	@echo "$(YELLOW)Building Pico W (RP2040, WiFi: $(WIFI_MODE))...$(NC)"
 	@mkdir -p $(BUILD_BASE)/picow
-	@cd $(BUILD_BASE)/picow && cmake -DTARGET_BOARD=picow ../.. && $(MAKE) --no-print-directory
+	@cd $(BUILD_BASE)/picow && cmake -DTARGET_BOARD=picow -DWIFI_MODE=$(WIFI_MODE) ../.. && $(MAKE) --no-print-directory
 	@if [ -f $(BUILD_BASE)/picow/pybricks_picow.uf2 ]; then \
 		echo "$(GREEN)✓ Pico W: $(BUILD_BASE)/picow/pybricks_picow.uf2$(NC)"; \
 	else \
@@ -33,9 +33,9 @@ picow:
 	fi
 
 pico2w:
-	@echo "$(YELLOW)Building Pico 2 W (RP2350B, 12 motors)...$(NC)"
+	@echo "$(YELLOW)Building Pico 2 W (RP2350B, WiFi: $(WIFI_MODE))...$(NC)"
 	@mkdir -p $(BUILD_BASE)/pico2w
-	@cd $(BUILD_BASE)/pico2w && cmake -DTARGET_BOARD=pico2w ../.. && $(MAKE) --no-print-directory
+	@cd $(BUILD_BASE)/pico2w && cmake -DTARGET_BOARD=pico2w -DWIFI_MODE=$(WIFI_MODE) ../.. && $(MAKE) --no-print-directory
 	@if [ -f $(BUILD_BASE)/pico2w/pybricks_pico2w.uf2 ]; then \
 		echo "$(GREEN)✓ Pico 2 W: $(BUILD_BASE)/pico2w/pybricks_pico2w.uf2$(NC)"; \
 	else \
@@ -54,13 +54,23 @@ clean-pico2w:
 	@rm -rf $(BUILD_BASE)/pico2w
 
 help:
-	@echo "Pybricks Pico Build System"
+	@echo "Pybricks Pico WiFi Build System"
 	@echo ""
 	@echo "Targets:"
-	@echo "  make              - Build both Pico W and Pico 2 W (default)"
-	@echo "  make picow        - Build Pico W only (4 motors)"
-	@echo "  make pico2w       - Build Pico 2 W only (12 motors)"
+	@echo "  make              - Build both Pico W and Pico 2 W"
+	@echo "  make picow        - Build Pico W only"
+	@echo "  make pico2w       - Build Pico 2 W only"
 	@echo "  make clean        - Remove all build directories"
 	@echo ""
+	@echo "WiFi Modes (set WIFI_MODE=):"
+	@echo "  THREADSAFE_BACKGROUND  - Automatic background (default)"
+	@echo "  POLL                   - Manual polling (real-time)"
+	@echo "  SYS                    - FreeRTOS-based"
+	@echo ""
+	@echo "Examples:"
+	@echo "  make WIFI_MODE=POLL"
+	@echo "  make picow WIFI_MODE=THREADSAFE_BACKGROUND"
+	@echo ""
 	@echo "Environment:"
-	@echo "PICO_SDK_PATH=$(PICO_SDK_PATH)"
+	@echo "  PICO_SDK_PATH=$(PICO_SDK_PATH)"
+	@echo "  WIFI_MODE=$(WIFI_MODE)"
