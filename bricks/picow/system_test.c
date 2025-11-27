@@ -8,6 +8,9 @@
 #include "../../lib/pbio/drv/storage/storage_flash_rp2040.h"
 #include "../../lib/pbio/drv/storage/storage_sd_rp2040.h"
 #include "../../lib/pbio/drv/battery/battery_rp2040.h"
+#ifdef PICO_2W
+#include "../../lib/pbio/drv/motion_dsp/dsp_verification.h"
+#endif
 
 extern bool nus_is_ready(void);
 extern void nus_send_data(const uint8_t *data, uint16_t length);
@@ -290,6 +293,31 @@ void test_battery(const char *args) {
     }
 }
 
+// Test DSP (Pico 2 W only)
+void test_dsp(const char *args) {
+#ifdef PICO_2W
+    if (strcmp(args, "VERIFY") == 0) {
+        send_response("DSP: Running verification...\n");
+        dsp_verify_instructions();
+        send_response("DSP: Verification complete (check serial output)\n");
+        
+    } else if (strcmp(args, "BENCH") == 0) {
+        send_response("DSP: Running benchmark...\n");
+        dsp_benchmark_result_t result = dsp_benchmark_multiply_accumulate(10000);
+        
+        send_response("DSP Benchmark Results:\n");
+        send_response("  Scalar: %lu cycles\n", result.scalar_cycles);
+        send_response("  DSP:    %lu cycles\n", result.dsp_cycles);
+        send_response("  Speedup: %.2fx\n", result.speedup);
+        
+    } else {
+        send_response("DSP usage: DSP VERIFY|BENCH\n");
+    }
+#else
+    send_response("DSP: Not available on Pico W (RP2040)\n");
+#endif
+}
+
 // Test motors
 void test_motor(const char *args) {
     extern void pbdrv_pwm_set_duty_simple(uint8_t id, int16_t duty);
@@ -430,6 +458,8 @@ void system_test_parse_command(const char *cmd) {
         test_watchdog(cmd + 4);
     } else if (strncmp(cmd, "BAT ", 4) == 0) {
         test_battery(cmd + 4);
+    } else if (strncmp(cmd, "DSP ", 4) == 0) {
+        test_dsp(cmd + 4);
     } else if (strncmp(cmd, "MOTOR ", 6) == 0) {
         test_motor(cmd + 6);
     } else if (strncmp(cmd, "SYS ", 4) == 0) {
@@ -443,6 +473,7 @@ void system_test_parse_command(const char *cmd) {
         send_response("  SD STATUS|WRITE|READ|VERIFY\n");
         send_response("  WDT STATUS|ENABLE|UPDATE|TEST\n");
         send_response("  BAT READ\n");
+        send_response("  DSP VERIFY|BENCH (Pico 2W only)\n");
         send_response("  MOTOR TEST <id>|ALL|RUN <id> <duty>|STOP|COUNT|RESET\n");
         send_response("  SYS INFO|REBOOT\n");
         send_response("  HELP or ? - This help\n");

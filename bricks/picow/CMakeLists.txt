@@ -73,11 +73,20 @@ include_directories(
     ${PBIO_TOP}/drv/pid_dma
     ${PBIO_TOP}/drv/ioport
     ${PBIO_TOP}/drv/storage
+    ${PBIO_TOP}/drv/motion_dsp
 )
 
 if(IS_PICO_2W)
-    add_compile_definitions(PICO_2W=1)
+    # Don't modify compiler flags - just add defines
+    add_compile_definitions(
+        ARM_MATH_CM33
+        ARM_MATH_DSP
+        __ARM_FEATURE_DSP=1
+    )
+    
+    message(STATUS "RP2350 DSP support enabled (via defines)")
 endif()
+
 add_compile_definitions(CYW43_ENABLE_BLUETOOTH=1)
 
 if(ENABLE_OTA)
@@ -101,6 +110,7 @@ add_executable(${OUTPUT_NAME}
     ${PBIO_TOP}/drv/storage/storage_flash_rp2040.c
     ${PBIO_TOP}/drv/storage/storage_sd_rp2040.c
     ${PBIO_TOP}/drv/storage/storage.c
+    $<$<BOOL:${IS_PICO_2W}>:${PBIO_TOP}/drv/motion_dsp/dsp_verification.c>
 )
 
 pico_generate_pio_header(${OUTPUT_NAME} ${PBIO_TOP}/drv/pid_dma/pid_dma.pio)
