@@ -110,8 +110,16 @@ add_executable(${OUTPUT_NAME}
     ${PBIO_TOP}/drv/storage/storage_flash_rp2040.c
     ${PBIO_TOP}/drv/storage/storage_sd_rp2040.c
     ${PBIO_TOP}/drv/storage/storage.c
-    $<$<BOOL:${IS_PICO_2W}>:${PBIO_TOP}/drv/motion_dsp/dsp_verification.c>
 )
+
+if(IS_PICO_2W)
+    list(APPEND PBIO_SOURCES
+        ${PBIO_TOP}/drv/motion_dsp/dsp_verification.c
+        ${PBIO_TOP}/drv/motion_dsp/encoder_filter_dsp.c
+        ${PBIO_TOP}/drv/motion_dsp/encoder_filter_test.c
+    )
+endif()
+
 
 pico_generate_pio_header(${OUTPUT_NAME} ${PBIO_TOP}/drv/pid_dma/pid_dma.pio)
 
