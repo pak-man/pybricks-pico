@@ -11,7 +11,8 @@
 #ifdef PICO_2W
 #include "../../lib/pbio/drv/motion_dsp/dsp_verification.h"
 #include "../../lib/pbio/drv/motion_dsp/encoder_filter_dsp.h"
-#include "../../lib/pbio/drv/motion_dsp/pid_Controller_dsp.h"
+#include "../../lib/pbio/drv/motion_dsp/pid_controller_dsp.h"
+#include "../../lib/pbio/drv/motion_dsp/motion_profiler_dsp.h"
 #endif
 
 extern bool nus_is_ready(void);
@@ -486,6 +487,14 @@ void system_test_parse_command(const char *cmd) {
 	#else
 	    send_response("ERROR", "Requires Pico 2W");
 	#endif
+    } else if (strncmp(cmd, "MOTION TEST", 11) == 0) {
+	#ifdef PICO_2W
+	    printf("Running motion profiling test suite...\n");
+	    motion_profiling_run_tests();
+	    send_response("MOTION TEST", "Complete - check serial");
+	#else
+	    send_response("ERROR", "Requires Pico 2W");
+	#endif
     } else if (strcmp(cmd, "HELP") == 0 || strcmp(cmd, "?") == 0) {
         send_response("\nAvailable test commands:\n");
         send_response("  LED ON|OFF|BLINK\n");
@@ -498,6 +507,7 @@ void system_test_parse_command(const char *cmd) {
         send_response("  DSP VERIFY|BENCH (Pico 2W only)\n");
         send_response("  FILTER TEST    - Run encoder filter tests (DSP)\n");
         send_response("  PID TEST       - Run PID controller tests (DSP)\n");
+        send_response("  MOTION TEST    - Run motion profiling tests (multi-axis)\n");
         send_response("  MOTOR TEST <id>|ALL|RUN <id> <duty>|STOP|COUNT|RESET\n");
         send_response("  SYS INFO|REBOOT\n");
         send_response("  HELP or ? - This help\n");

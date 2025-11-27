@@ -120,6 +120,8 @@ if(IS_PICO_2W)
         ${PBIO_TOP}/drv/motion_dsp/pid_controller_dsp.c
         ${PBIO_TOP}/drv/motion_dsp/pid_controller_test.c
         ${PBIO_TOP}/drv/motion_dsp/trajectory_planner_dsp.c
+        ${PBIO_TOP}/drv/motion_dsp/motion_profiler_dsp.c
+        ${PBIO_TOP}/drv/motion_dsp/motion_profiling_test.c
     )
 endif()
 
