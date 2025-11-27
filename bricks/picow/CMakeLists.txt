@@ -118,7 +118,8 @@ if(IS_PICO_2W)
         ${PBIO_TOP}/drv/motion_dsp/encoder_filter_dsp.c
         ${PBIO_TOP}/drv/motion_dsp/encoder_filter_test.c
         ${PBIO_TOP}/drv/motion_dsp/pid_controller_dsp.c
-        ${PBIO_TOP}/drv/motion_dsp/pid_controller__test.c
+        ${PBIO_TOP}/drv/motion_dsp/pid_controller_test.c
+        ${PBIO_TOP}/drv/motion_dsp/trajectory_planner_dsp.c
     )
 endif()
 
